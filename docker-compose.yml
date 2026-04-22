@@ -1,6 +1,6 @@
 services:
   frontend:
-    image: YOUR_DOCKERHUB_USERNAME/meal-plan-frontend:latest
+    image: awkwardwalker/meal-plan-frontend:latest
     restart: unless-stopped
     ports:
       - "8080:80"
@@ -11,14 +11,14 @@ services:
       - proxy
 
   backend:
-    image: YOUR_DOCKERHUB_USERNAME/meal-plan-backend:latest
+    image: awkwardwalker/meal-plan-backend:latest
     restart: unless-stopped
     environment:
       DB_HOST: mysql         # name of your existing MySQL container
       DB_PORT: 3306
       DB_NAME: mealplan
       DB_USER: mealplan
-      DB_PASSWORD: CHANGE_ME
+      DB_PASSWORD: mealplan
     networks:
       - meal-plan
       - proxy                # must be on same network as your MySQL container
