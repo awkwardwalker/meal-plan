@@ -1,34 +1,49 @@
 const express = require('express');
 const router = express.Router();
-const { db } = require('../db/database');
+const { getDb } = require('../db/database');
 
 // GET overrides for a week
-router.get('/:weekStart', (req, res) => {
-  const rows = db.prepare('SELECT * FROM day_overrides WHERE week_start = ?').all(req.params.weekStart);
-  res.json(rows);
+router.get('/:weekStart', async (req, res) => {
+  try {
+    const db = getDb();
+    const [rows] = await db.execute('SELECT * FROM day_overrides WHERE week_start = ?', [req.params.weekStart]);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // PUT set override for a day
-router.put('/:weekStart/:day', (req, res) => {
-  const { weekStart, day } = req.params;
-  const { override_type, label } = req.body;
+router.put('/:weekStart/:day', async (req, res) => {
+  try {
+    const db = getDb();
+    const { weekStart, day } = req.params;
+    const { override_type, label } = req.body;
 
-  if (override_type === 'normal') {
-    db.prepare('DELETE FROM day_overrides WHERE week_start=? AND day_name=?').run(weekStart, day);
-  } else {
-    db.prepare(`
-      INSERT INTO day_overrides (week_start, day_name, override_type, label)
-      VALUES (?, ?, ?, ?)
-      ON CONFLICT(week_start, day_name) DO UPDATE SET override_type=excluded.override_type, label=excluded.label
-    `).run(weekStart, day, override_type, label || null);
+    if (override_type === 'normal') {
+      await db.execute('DELETE FROM day_overrides WHERE week_start=? AND day_name=?', [weekStart, day]);
+    } else {
+      await db.execute(`
+        INSERT INTO day_overrides (week_start, day_name, override_type, label)
+        VALUES (?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE override_type=VALUES(override_type), label=VALUES(label)
+      `, [weekStart, day, override_type, label || null]);
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-  res.json({ ok: true });
 });
 
 // DELETE override
-router.delete('/:weekStart/:day', (req, res) => {
-  db.prepare('DELETE FROM day_overrides WHERE week_start=? AND day_name=?').run(req.params.weekStart, req.params.day);
-  res.json({ ok: true });
+router.delete('/:weekStart/:day', async (req, res) => {
+  try {
+    const db = getDb();
+    await db.execute('DELETE FROM day_overrides WHERE week_start=? AND day_name=?', [req.params.weekStart, req.params.day]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;
