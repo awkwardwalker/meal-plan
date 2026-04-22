@@ -20,9 +20,11 @@ jobs:
 
       - name: Install dependencies
         run: npm install
+        working-directory: frontend
 
       - name: Build
         run: npm run build
+        working-directory: frontend
 
       - name: Push dist to deploy branch
         run: |
@@ -33,9 +35,9 @@ jobs:
           git checkout --orphan deploy-temp
           git rm -rf . --quiet
 
-          # Copy dist contents to root
-          cp -r dist/. .
-          rm -rf dist
+          # Copy dist contents to root (dist is built inside frontend/)
+          cp -r frontend/dist/. .
+          rm -rf frontend
 
           # Commit and force push to deploy branch
           git add -A
