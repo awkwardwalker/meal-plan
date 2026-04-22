@@ -1,4 +1,4 @@
-name: Build & Push to Deploy Branch
+name: Build & Push Docker Images
 
 on:
   push:
@@ -13,35 +13,29 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
         with:
-          node-version: 20
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Install dependencies
-        run: npm install
-        working-directory: frontend
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Build
-        run: npm run build
-        working-directory: frontend
+      - name: Build & push frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/meal-plan-frontend:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/meal-plan-frontend:${{ github.sha }}
 
-      - name: Push dist to deploy branch
-        run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-
-          # Switch to deploy branch (create orphan so it has no history)
-          git checkout --orphan deploy-temp
-          git rm -rf . --quiet
-
-          # Copy dist contents to root (dist is built inside frontend/)
-          cp -r frontend/dist/. .
-          rm -rf frontend
-
-          # Commit and force push to deploy branch
-          git add -A
-          git commit -m "deploy: $(date -u '+%Y-%m-%d %H:%M:%S UTC') from ${GITHUB_SHA::7}"
-          git push origin HEAD:deploy --force
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build & push backend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/meal-plan-backend:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/meal-plan-backend:${{ github.sha }}
